@@ -1,38 +1,8 @@
-// import {Server} from 'socket.io'
-// let io;        //represent the socketio of server side
-
-// export function initSocket(httpServer){
-//     io=new Server(httpServer,{
-//         cors:{
-//             origin:'http://localhost:5173',      //with this io is setup
-//             credentials:true,
-//         }
-//     })
-
-//     console.log("Socket.io server is RUNNING")
-
-
-    
-//     io.on("connection",(socket)=>{
-//         console.log("A user connected"+socket.id)    //too many users connect to the server using socketio and each get a unique socketid & it change as user reconnect
-        
-//     })
-// }
-
-// export function getIO(){
-//     if(!io){
-//         throw new Error("Socket.io is not initialized")
-//     }
-//     return io;
-// }
-
-// //socletio server starts mainly in server.js
-
-
 import { Server } from 'socket.io'
 import { handleSocketMessage } from '../controllers/chat.controller.js'
 
 let io;
+const activeStreams = new Map()
 
 export function initSocket(httpServer) {
     io = new Server(httpServer, {
@@ -46,38 +16,70 @@ export function initSocket(httpServer) {
         console.log("User connected: " + socket.id)
 
         socket.on("sendMessage", async ({ message, chatId, userId }) => {
-    try {
-        let resolvedChatId = chatId
+            try {
+                let resolvedChatId = chatId
 
-        const { chat } = await handleSocketMessage({
-            message,
-            chatId,
-            userId,
-            onChatCreated: (newChatId, title) => {
-                resolvedChatId = newChatId
-                if (!chatId) {
-                    // ✅ emit with title immediately
-                    socket.emit("chatCreated", {
-                        chatId: newChatId,
-                        title
-                    })
+                // ✅ These belong here — chatId only exists inside this handler
+                const controller = new AbortController()
+                const tempKey = chatId || socket.id
+                activeStreams.set(tempKey, controller)
+
+                const { chat, aborted } = await handleSocketMessage({
+                    message,
+                    chatId,
+                    userId,
+                    signal: controller.signal,
+                    onChatCreated: (newChatId, title) => {
+                        resolvedChatId = newChatId
+
+                        activeStreams.delete(tempKey)
+                        activeStreams.set(newChatId, controller)
+
+                        if (!chatId) {
+                            socket.emit("chatCreated", { chatId: newChatId, title })
+                        }
+                    },
+                    onChunk: (chunk) => {
+                        socket.emit("aiChunk", { chunk, chatId: resolvedChatId })
+                    }
+                })
+
+                activeStreams.delete(resolvedChatId || tempKey)
+
+                if (aborted) {
+                    socket.emit("aiStopped", { chatId: chat._id.toString() })
+                } else {
+                    socket.emit("aiDone", { chatId: chat._id.toString() })
                 }
-            },
-            onChunk: (chunk) => {
-                socket.emit("aiChunk", { chunk, chatId: resolvedChatId })
+
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    console.log(`Stream aborted for socket ${socket.id}`)
+                    return
+                }
+                console.error("Socket error:", err.message)
+                socket.emit("aiError", { message: "Something went wrong" })
             }
         })
 
-        socket.emit("aiDone", { chatId: chat._id.toString() })
-
-    } catch (err) {
-        console.error("Socket error:", err.message)
-        socket.emit("aiError", { message: "Something went wrong" })
-    }
-})
+        socket.on("stopGeneration", ({ chatId }) => {
+            console.log(`Stop requested for chatId: ${chatId}`)
+            const controller = activeStreams.get(chatId)
+            if (controller) {
+                controller.abort()
+                activeStreams.delete(chatId)
+                // aiStopped is emitted from sendMessage handler via aborted flag
+                // so we don't emit it here — avoids double emit
+            }
+        })
 
         socket.on("disconnect", () => {
             console.log("User disconnected: " + socket.id)
+            const tempController = activeStreams.get(socket.id)
+            if (tempController) {
+                tempController.abort()
+                activeStreams.delete(socket.id)
+            }
         })
     })
 }

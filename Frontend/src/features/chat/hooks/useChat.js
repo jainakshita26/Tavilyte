@@ -1,125 +1,11 @@
-// import { initializeSocketConnection } from "../service/chat.socket";
-// import { sendMessage, getChats, getMessages, deleteChat } from "../service/chat.api";
-// import { useDispatch } from "react-redux";
-// import { addNewMessage, createNewChat, setChats, setCurrentChatId, setLoading, addMessages } from "../chat.slice";
-
-
-// export const useChat = () => {
-//     const dispatch = useDispatch()
-
-//     function initializeSocket() {
-//         const socket = initializeSocketConnection()
-
-//         // Listen for new chat creation (when chatId was null)
-//         socket.on("chatCreated", ({ chatId, title }) => {
-//             dispatch(createNewChat({ chatId, title }))
-//             dispatch(setCurrentChatId(chatId))
-//         })
-
-//         // Each chunk arrives here — append it to the message
-//         socket.on("aiChunk", ({ chunk, chatId }) => {
-//             dispatch(appendChunk({ chatId, chunk }))
-//         })
-
-//         // Streaming finished
-//         socket.on("aiDone", ({ chatId }) => {
-//             dispatch(setStreaming(false))
-//         })
-
-//         socket.on("aiError", ({ message }) => {
-//             console.error("AI error:", message)
-//             dispatch(setStreaming(false))
-//         })
-//     }
-
-//     async function handleSendMessage({ message, chatId }) {
-//         const socket = getSocket()
-//         if (!socket) return
-
-//         // Add user message to UI immediately (don't wait for server)
-//         if (chatId) {
-//             dispatch(addNewMessage({ chatId, content: message, role: "user" }))
-//         }
-
-//         // Add empty AI message that chunks will fill in
-//         dispatch(setStreaming(true))
-
-//         // Send to backend via socket instead of HTTP
-//         socket.emit("sendMessage", {
-//             message,
-//             chatId,
-//             userId: "get-from-redux-auth-state" // replace with actual userId
-//         })
-//     }
-
-
-//     async function handleGetChats() {
-//         dispatch(setLoading(true))
-//         const data = await getChats()
-//         const { chats } = data
-//         dispatch(setChats(chats.reduce((acc, chat) => {
-//             acc[chat._id] = {
-//                 id: chat._id,
-//                 title: chat.title,
-//                 messages: [],
-//                 lastUpdated: chat.updatedAt,
-//             }
-//             return acc
-//         }, {})))
-//         dispatch(setLoading(false))
-//     }
-
-//     async function handleOpenChat(chatId, chats) {
-//         if (chats[chatId]?.messages.length === 0) {
-//             const data = await getMessages(chatId);
-//             const { messages } = data
-
-//             const formattedMessages = messages.map(msg => ({
-//                 content: msg.content,
-//                 role: msg.role
-//             }))
-//             dispatch(addMessages({
-//                 chatId,
-//                 messages: formattedMessages
-//             }))
-//         }
-
-//         dispatch(setCurrentChatId(chatId))
-//     }
-
-//     function handleNewChat() {
-//         dispatch(setCurrentChatId(null))
-//     }
-
-//     async function handleDeleteChat(chatId, currentChatId, chats) {
-//         await deleteChat(chatId)
-//         dispatch(removeChat(chatId))
-
-//         // if deleted chat was open, switch to another or go to new chat
-//         if (chatId === currentChatId) {
-//             const remaining = Object.keys(chats).filter(id => id !== chatId)
-//             dispatch(setCurrentChatId(remaining.length > 0 ? remaining[0] : null))
-//         }
-//     }
-
-
-//     return {
-//         initializeSocketConnection,
-//         handleSendMessage,
-//         handleGetChats,
-//         handleOpenChat,
-//         handleNewChat,
-//         handleDeleteChat
-//     }
-// }
 
 import { initializeSocketConnection, getSocket } from "../service/chat.socket"
 import { useDispatch, useSelector } from "react-redux"
-import { useRef } from "react"
+import { useRef ,useCallback} from "react"
 import {
     addNewMessage, createNewChat, setChats, setCurrentChatId,
     setLoading, addMessages, removeChat, appendChunk, setStreaming,
-    updateChatTitle, moveTempChat
+    updateChatTitle, moveTempChat,aiStopped
 } from "../chat.slice"
 import { getChats, getMessages, deleteChat } from "../service/chat.api"
 
@@ -138,6 +24,7 @@ export const useChat = () => {
         socket.off("aiChunk")
         socket.off("aiDone")
         socket.off("aiError")
+        socket.off("aiStopped")
 
         socket.on("chatCreated", ({ chatId, title }) => {
             const tempId = pendingChatIdRef.current
@@ -172,7 +59,19 @@ export const useChat = () => {
         socket.on("aiError", () => {
             dispatch(setLoading(false))
         })
+
+        socket.on("aiStopped", ({ chatId }) => {
+            dispatch(aiStopped({ chatId }))
+            dispatch(setLoading(false))
+        })
     }
+
+     const handleStopGeneration = useCallback((chatId) => {
+        const socket = getSocket()
+        if (socket?.connected && chatId) {
+            socket.emit("stopGeneration", { chatId })
+        }
+    }, [])
 
     async function handleSendMessage({ message, chatId }) {
         const socket = getSocket()
@@ -250,5 +149,6 @@ export const useChat = () => {
         handleOpenChat,
         handleNewChat,
         handleDeleteChat,
+        handleStopGeneration
     }
 }

@@ -35,6 +35,16 @@ const chatSlice = createSlice({
         removeChat: (state, action) => {
             delete state.chats[action.payload]
         },
+        aiStopped: (state, action) => {
+            const { chatId } = action.payload
+            const messages = state.chats[chatId]?.messages
+            if (!messages?.length) return
+            const lastMsg = messages[messages.length - 1]
+            if (lastMsg?.role === 'ai') {
+                lastMsg.streaming = false
+                lastMsg.isPartial = true  // lets you show a stopped indicator
+            }
+        },
 
         // Called for each incoming chunk — appends to the last AI message
         appendChunk: (state, action) => {
@@ -95,5 +105,5 @@ const chatSlice = createSlice({
     }
 })
 
-export const { setChats, setCurrentChatId, updateChatTitle, setLoading, moveTempChat,setError, createNewChat, addNewMessage, addMessages, appendChunk, setStreaming, removeChat } = chatSlice.actions
+export const { setChats, setCurrentChatId,aiStopped, updateChatTitle, setLoading, moveTempChat, setError, createNewChat, addNewMessage, addMessages, appendChunk, setStreaming, removeChat } = chatSlice.actions
 export default chatSlice.reducer

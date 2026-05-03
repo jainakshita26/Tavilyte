@@ -11,6 +11,36 @@ const SUGGESTIONS = [
   "Latest AI news",
 ]
 
+const ActionButton = ({ isStreaming, isLoading, chatInput, onStop }) => {
+  if (isStreaming) {
+    return (
+      <button
+        type="button"                    // ← type=button so it never submits the form
+        onClick={onStop}
+        className='flex items-center justify-center w-8 h-8 rounded-lg bg-white/0.08 border border-white/20 hover:bg-white/[0.14] transition'
+        aria-label="Stop generating"
+      >
+        {/* Stop square icon */}
+        <svg className='w-3 h-3 fill-white/80' viewBox='0 0 16 16'>
+          <rect x='3' y='3' width='10' height='10' rx='1.5' />
+        </svg>
+      </button>
+    )
+  }
+
+  return (
+    <button
+      type='submit'
+      disabled={!chatInput.trim() || isLoading}
+      className='flex items-center justify-center w-8 h-8 rounded-lg bg-white/0.08 border border-white/10 hover:bg-white/[0.14] disabled:opacity-30 disabled:cursor-not-allowed transition'
+    >
+      <svg className='w-14px h-14px fill-white/70' viewBox='0 0 16 16'>
+        <path d='M2 8L14 2L8 14L7 9L2 8Z' />
+      </svg>
+    </button>
+  )
+}
+
 const Dashboard = () => {
   const chat = useChat()
   const [chatInput, setChatInput] = useState('')
@@ -30,8 +60,8 @@ const Dashboard = () => {
   }, [chats, currentChatId])
 
   const filteredChats = Object.values(chats).filter(c =>
-    c.title?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+    c.title?.toLowerCase().includes(searchQuery.toLowerCase()) 
+  ).sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated))
 
   const handleSubmitMessage = (e) => {
     e.preventDefault()
@@ -43,6 +73,10 @@ const Dashboard = () => {
 
   const handleSuggestion = (text) => {
     chat.handleSendMessage({ message: text, chatId: currentChatId })
+  }
+
+  const handleStop = () => {
+    chat.handleStopGeneration(currentChatId)
   }
 
   const hasMessages = chats[currentChatId]?.messages?.length > 0
@@ -135,15 +169,12 @@ const Dashboard = () => {
                   placeholder='Ask anything...'
                   className='flex-1 bg-transparent outline-none text-white text-sm placeholder:text-white/40'
                 />
-                <button
-                  type='submit'
-                  disabled={!chatInput.trim() || isLoading}  
-                  className='flex items-center justify-center w-8 h-8 rounded-lg bg-white/0.08 border border-white/10 hover:bg-white/[0.14] disabled:opacity-30 disabled:cursor-not-allowed transition'
-                >
-                  <svg className='w-14px h-14px fill-white/70' viewBox='0 0 16 16'>
-                    <path d='M2 8L14 2L8 14L7 9L2 8Z' />
-                  </svg>
-                </button>
+                <ActionButton
+                  isStreaming={isStreaming}
+                  isLoading={isLoading}
+                  chatInput={chatInput}
+                  onStop={handleStop}
+                />
               </form>
 
               <div className='flex flex-wrap justify-center gap-2'>
@@ -167,7 +198,9 @@ const Dashboard = () => {
 
             {/* ── Message list — no indicators inside here ── */}
             {chats[currentChatId]?.messages.map((message, i) => (
+              
               <div
+              
                 key={i}
                 className={`w-fit max-w-[82%] text-sm md:text-base leading-relaxed
                   ${message.role === 'user'
@@ -178,18 +211,25 @@ const Dashboard = () => {
                 {message.role === 'user' ? (
                   <p>{message.content}</p>
                 ) : (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      p: ({ children }) => <p className='mb-2 last:mb-0'>{children}</p>,
-                      ul: ({ children }) => <ul className='mb-2 list-disc pl-5'>{children}</ul>,
-                      ol: ({ children }) => <ol className='mb-2 list-decimal pl-5'>{children}</ol>,
-                      code: ({ children }) => <code className='rounded bg-white/10 px-1 py-0.5 text-xs font-mono'>{children}</code>,
-                      pre: ({ children }) => <pre className='mb-2 overflow-x-auto rounded-xl bg-black/30 p-3 text-xs'>{children}</pre>,
-                    }}
-                  >
-                    {message.content}
-                  </ReactMarkdown>
+                  <>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => <p className='mb-2 last:mb-0'>{children}</p>,
+                        ul: ({ children }) => <ul className='mb-2 list-disc pl-5'>{children}</ul>,
+                        ol: ({ children }) => <ol className='mb-2 list-decimal pl-5'>{children}</ol>,
+                        code: ({ children }) => <code className='rounded bg-white/10 px-1 py-0.5 text-xs font-mono'>{children}</code>,
+                        pre: ({ children }) => <pre className='mb-2 overflow-x-auto rounded-xl bg-black/30 p-3 text-xs'>{children}</pre>,
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                    {message.isPartial && (
+                      <p className='text-[11px] text-white/30 mt-1'>
+                        ⚠ Response stopped
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             ))}
@@ -233,15 +273,12 @@ const Dashboard = () => {
                 placeholder='Ask anything...'
                 className='flex-1 bg-transparent outline-none text-white text-sm placeholder:text-white/40'
               />
-              <button
-                type='submit'
-                disabled={!chatInput.trim() || isLoading}  
-                className='flex items-center justify-center w-8 h-8 rounded-lg bg-white/0.08 border border-white/10 hover:bg-white/[0.14] disabled:opacity-30 disabled:cursor-not-allowed transition'
-              >
-                <svg className='w-14px h-14px fill-white/70' viewBox='0 0 16 16'>
-                  <path d='M2 8L14 2L8 14L7 9L2 8Z' />
-                </svg>
-              </button>
+              <ActionButton
+                isStreaming={isStreaming}
+                isLoading={isLoading}
+                chatInput={chatInput}
+                onStop={handleStop}
+              />
             </form>
           </div>
         )}
