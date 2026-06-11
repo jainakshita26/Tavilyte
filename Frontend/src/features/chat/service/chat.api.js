@@ -24,3 +24,8 @@ export const deleteChat=async(chatId)=>{
     const response=await api.delete(`/api/chats/delete/${chatId}`)
     return response.data
 }
+
+export const renameChat = async (chatId, title) => {
+    const { data } = await axiosInstance.patch(`/chats/${chatId}/rename`, { title })
+    return data
+}

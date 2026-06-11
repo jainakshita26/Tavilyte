@@ -1,5 +1,5 @@
 import {Router} from 'express'
-import { deleteChat, getChat, getMessages, sendMessage } from '../controllers/chat.controller.js';
+import { deleteChat, getChat, getMessages, sendMessage,renameChat } from '../controllers/chat.controller.js';
 import { authUser } from '../middleware/auth.middleware.js';
 
 

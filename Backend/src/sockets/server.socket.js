@@ -45,6 +45,7 @@ export function initSocket(httpServer) {
                 })
 
                 activeStreams.delete(resolvedChatId || tempKey)
+                
 
                 if (aborted) {
                     socket.emit("aiStopped", { chatId: chat._id.toString() })

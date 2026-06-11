@@ -7,7 +7,7 @@ import {
     setLoading, addMessages, removeChat, appendChunk, setStreaming,
     updateChatTitle, moveTempChat,aiStopped
 } from "../chat.slice"
-import { getChats, getMessages, deleteChat } from "../service/chat.api"
+import { getChats, getMessages, deleteChat ,renameChat} from "../service/chat.api"
 
 export const useChat = () => {
     const dispatch = useDispatch()
@@ -142,6 +142,22 @@ export const useChat = () => {
         }
     }
 
+    async function handleRenameChat(chatId, newTitle) {
+    if (!newTitle?.trim()) return
+    
+    const trimmed = newTitle.trim()
+    
+    // Optimistic update — instant UI feedback
+    dispatch(updateChatTitle({ chatId, title: trimmed }))
+    
+    try {
+        await renameChat(chatId, trimmed)
+    } catch (err) {
+        console.error("Rename failed:", err)
+        // Optionally revert on failure — skipping for simplicity
+    }
+}
+
     return {
         initializeSocket,
         handleSendMessage,
@@ -149,6 +165,7 @@ export const useChat = () => {
         handleOpenChat,
         handleNewChat,
         handleDeleteChat,
-        handleStopGeneration
+        handleStopGeneration,
+        handleRenameChat
     }
 }

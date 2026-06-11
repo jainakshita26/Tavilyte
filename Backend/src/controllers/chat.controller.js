@@ -42,6 +42,29 @@ export async function sendMessage(req, res) {
     })
 }
 
+export async function renameChat(req, res) {
+    const { chatId } = req.params
+    const { title } = req.body
+
+    if (!title?.trim()) {
+        return res.status(400).json({ message: "Title cannot be empty" })
+    }
+
+    const chat = await chatModel.findOneAndUpdate(
+        { _id: chatId, user: req.user.id },
+        { title: title.trim() },
+        { new: true }
+    )
+
+    if (!chat) {
+        return res.status(404).json({ message: "Chat not found" })
+    }
+
+    res.status(200).json({
+        message: "Chat renamed successfully",
+        chat
+    })
+}
 export async function getChat(req, res) {
     const user = req.user;
 
@@ -52,6 +75,8 @@ export async function getChat(req, res) {
         chats
     })
 }
+
+
 
 export async function getMessages(req, res) {
     const { chatId } = req.params;
