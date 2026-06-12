@@ -1,20 +1,21 @@
 
 import { initializeSocketConnection, getSocket } from "../service/chat.socket"
 import { useDispatch, useSelector } from "react-redux"
-import { useRef ,useCallback} from "react"
+import { useRef, useCallback } from "react"
 import {
     addNewMessage, createNewChat, setChats, setCurrentChatId,
     setLoading, addMessages, removeChat, appendChunk, setStreaming,
-    updateChatTitle, moveTempChat,aiStopped
+    updateChatTitle, moveTempChat, aiStopped
 } from "../chat.slice"
-import { getChats, getMessages, deleteChat ,renameChat} from "../service/chat.api"
+import { getChats, getMessages, deleteChat, renameChat } from "../service/chat.api"
+import { addUsageWarning } from "../chat.slice.js"
 
 export const useChat = () => {
     const dispatch = useDispatch()
     const user = useSelector((state) => state.auth.user)
     const pendingMessageRef = useRef(null)
     const pendingChatIdRef = useRef(null) // track temp chatId
-    
+
 
     function initializeSocket() {
         const socket = initializeSocketConnection()
@@ -25,6 +26,7 @@ export const useChat = () => {
         socket.off("aiDone")
         socket.off("aiError")
         socket.off("aiStopped")
+        socket.off("usageWarning")
 
         socket.on("chatCreated", ({ chatId, title }) => {
             const tempId = pendingChatIdRef.current
@@ -64,40 +66,44 @@ export const useChat = () => {
             dispatch(aiStopped({ chatId }))
             dispatch(setLoading(false))
         })
+
+        socket.on("usageWarning", (warning) => {
+            dispatch(addUsageWarning(warning))
+        })
     }
 
-     const handleStopGeneration = useCallback((chatId) => {
+    const handleStopGeneration = useCallback((chatId) => {
         const socket = getSocket()
         if (socket?.connected && chatId) {
             socket.emit("stopGeneration", { chatId })
         }
     }, [])
 
-    async function handleSendMessage({ message, chatId }) {
+    async function handleSendMessage({ message, chatId, fileContext = null }) {
         const socket = getSocket()
         if (!socket || !user?._id) return
 
         dispatch(setLoading(true))
 
+        const displayMessage = fileContext
+            ? `${message}\n\n📎 [Attached file content included]`
+            : message
+
         if (chatId) {
-            // existing chat — straightforward
-            dispatch(addNewMessage({ chatId, content: message, role: "user" }))
+            dispatch(addNewMessage({ chatId, content: displayMessage, role: "user" }))
         } else {
-            // new chat — create a temporary slot immediately
-            // so user message shows right away without waiting for server
             const tempId = `temp_${Date.now()}`
             pendingChatIdRef.current = tempId
-            pendingMessageRef.current = message
-
             dispatch(createNewChat({ chatId: tempId, title: 'New Chat' }))
             dispatch(setCurrentChatId(tempId))
-            dispatch(addNewMessage({ chatId: tempId, content: message, role: "user" }))
+            dispatch(addNewMessage({ chatId: tempId, content: displayMessage, role: "user" }))
         }
 
         socket.emit("sendMessage", {
             message,
             chatId: chatId || null,
-            userId: user._id
+            userId: user._id,
+            fileContext,   // ← new
         })
     }
 
@@ -143,20 +149,20 @@ export const useChat = () => {
     }
 
     async function handleRenameChat(chatId, newTitle) {
-    if (!newTitle?.trim()) return
-    
-    const trimmed = newTitle.trim()
-    
-    // Optimistic update — instant UI feedback
-    dispatch(updateChatTitle({ chatId, title: trimmed }))
-    
-    try {
-        await renameChat(chatId, trimmed)
-    } catch (err) {
-        console.error("Rename failed:", err)
-        // Optionally revert on failure — skipping for simplicity
+        if (!newTitle?.trim()) return
+
+        const trimmed = newTitle.trim()
+
+        // Optimistic update — instant UI feedback
+        dispatch(updateChatTitle({ chatId, title: trimmed }))
+
+        try {
+            await renameChat(chatId, trimmed)
+        } catch (err) {
+            console.error("Rename failed:", err)
+            // Optionally revert on failure — skipping for simplicity
+        }
     }
-}
 
     return {
         initializeSocket,

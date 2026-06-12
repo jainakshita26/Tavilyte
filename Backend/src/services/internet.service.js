@@ -1,18 +1,4 @@
-// import {tavily as Tavily} from "@tavily/core"
-
-// const tavily=Tavily({
-//     apiKey:process.env.TAVILY_API_KEY,
-// })
-
-// export const searchInternet=async ({query})=>{
-//     const results= await tavily.search(query,{
-//         maxResults:5,
-//         searchDepth:"advanced"
-//     })
-//     console.log("📦 Results:", JSON.stringify(results).slice(0, 200));  // add this
-//     return JSON.stringify(results)
-// }
-
+import { trackUsage } from "./rateLimiter.js"
 const TAVILY_API_URL = "https://api.tavily.com/search"
 
 export const createSearchInternetTool = (signal) => {
@@ -21,8 +7,25 @@ export const createSearchInternetTool = (signal) => {
 
         // If already aborted before search starts, bail immediately
         if (signal?.aborted) {
-            console.log("Search skipped — stream already aborted")
+            
             return JSON.stringify({ results: [], aborted: true })
+        }
+
+        const status=trackUsage("tavily")
+        if (status.exceeded) {
+            onUsageWarning?.({ provider: "tavily", type: "exceeded" })
+            return JSON.stringify({
+                results: [],
+                error: "Search quota exceeded for this period."
+            })
+        }
+
+        if (status.nearLimit) {
+            onUsageWarning?.({
+                provider: "tavily",
+                type: "warning",
+                remaining: status.max - status.count
+            })
         }
 
         try {

@@ -2,6 +2,7 @@ import express from 'express'
 import cookieParser from 'cookie-parser'
 import authRouter from './routes/auth.routes.js'
 import chatRouter from './routes/chat.routes.js'
+import uploadRoutes from './routes/upload.routes.js'
 import morgan from 'morgan'
 import cors from 'cors'
 

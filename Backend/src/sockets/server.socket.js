@@ -15,7 +15,7 @@ export function initSocket(httpServer) {
     io.on("connection", (socket) => {
         console.log("User connected: " + socket.id)
 
-        socket.on("sendMessage", async ({ message, chatId, userId }) => {
+        socket.on("sendMessage", async ({ message, chatId, userId,fileContext }) => {
             try {
                 let resolvedChatId = chatId
 
@@ -28,6 +28,7 @@ export function initSocket(httpServer) {
                     message,
                     chatId,
                     userId,
+                    fileContext,
                     signal: controller.signal,
                     onChatCreated: (newChatId, title) => {
                         resolvedChatId = newChatId
@@ -41,11 +42,14 @@ export function initSocket(httpServer) {
                     },
                     onChunk: (chunk) => {
                         socket.emit("aiChunk", { chunk, chatId: resolvedChatId })
+                    },
+                    onUsageWarning: (warning) => {       
+                        socket.emit("usageWarning", warning)
                     }
                 })
 
                 activeStreams.delete(resolvedChatId || tempKey)
-                
+
 
                 if (aborted) {
                     socket.emit("aiStopped", { chatId: chat._id.toString() })

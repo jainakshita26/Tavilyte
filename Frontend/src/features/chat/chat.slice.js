@@ -7,6 +7,7 @@ const chatSlice = createSlice({
         currentChatId: null,
         isLoading: false,
         error: null,
+        usageWarnings:[]
     },
     reducers: {
         createNewChat: (state, action) => {
@@ -101,9 +102,17 @@ const chatSlice = createSlice({
         },
         setError: (state, action) => {
             state.error = action.payload
-        }
+        },
+        addUsageWarning: (state, action) => {
+            const exists = state.usageWarnings.find(w => w.provider === action.payload.provider)
+            if (!exists) state.usageWarnings.push(action.payload)
+            else Object.assign(exists, action.payload) // update existing
+        },
+        dismissUsageWarning: (state, action) => {
+            state.usageWarnings = state.usageWarnings.filter(w => w.provider !== action.payload)
+        },
     }
 })
 
-export const { setChats, setCurrentChatId,aiStopped, updateChatTitle, setLoading, moveTempChat, setError, createNewChat, addNewMessage, addMessages, appendChunk, setStreaming, removeChat } = chatSlice.actions
+export const { setChats, setCurrentChatId,aiStopped, updateChatTitle, setLoading, moveTempChat, setError, createNewChat, addNewMessage, addMessages, appendChunk, setStreaming, removeChat,addUsageWarning,dismissUsageWarning } = chatSlice.actions
 export default chatSlice.reducer

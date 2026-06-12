@@ -3,7 +3,9 @@ import ReactMarkdown from 'react-markdown'
 import { useSelector } from 'react-redux'
 import { useChat } from '../hooks/useChat'
 import remarkGfm from 'remark-gfm'
+import { UsageBanner } from '../../../components/UsageBannner'
 import { ExportButton } from '../../../components/exportButton'
+import { FileUpload } from '../../../components/FileUpload'
 
 const SUGGESTIONS = [
   "What's in the news today?",
@@ -48,6 +50,8 @@ const Dashboard = () => {
   const [editingChatId, setEditingChatId] = useState(null)
   const [editTitle, setEditTitle] = useState('')
   const [openMenuId, setOpenMenuId] = useState(null)
+  const [fileContext, setFileContext] = useState(null)   // ← added
+  const [fileName, setFileName] = useState(null)          // ← added
   const chats = useSelector((state) => state.chat.chats)
   const currentChatId = useSelector((state) => state.chat.currentChatId)
   const isLoading = useSelector((state) => state.chat.isLoading)
@@ -77,12 +81,35 @@ const Dashboard = () => {
     .filter(c => c.title?.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated))
 
+  // ← added: handlers for file upload
+  const handleFileProcessed = (extractedContent, name, fileType) => {
+    if (!extractedContent) {
+      setFileContext(null)
+      setFileName(null)
+      return
+    }
+    setFileContext({ content: extractedContent, type: fileType })
+    setFileName(name)
+  }
+
+  const handleClearFile = () => {
+    setFileContext(null)
+    setFileName(null)
+  }
+
   const handleSubmitMessage = (e) => {
     e.preventDefault()
     const trimmed = chatInput.trim()
-    if (!trimmed) return
-    chat.handleSendMessage({ message: trimmed, chatId: currentChatId })
+    if (!trimmed && !fileContext) return
+
+    chat.handleSendMessage({
+      message: trimmed,
+      chatId: currentChatId,
+      fileContext: fileContext?.content || null,
+    })
+
     setChatInput('')
+    handleClearFile()
   }
 
   const handleSuggestion = (text) => {
@@ -207,7 +234,7 @@ const Dashboard = () => {
                       const isChatStreaming = c.id === currentChatId && isStreaming
 
                       if (isChatStreaming) {
-                        chat.handleStopGeneration(c.id)  // abort stream first
+                        chat.handleStopGeneration(c.id)
                       }
 
                       chat.handleDeleteChat(c.id, currentChatId, chats)
@@ -230,6 +257,7 @@ const Dashboard = () => {
 
       {/* ── Main ── */}
       <section className='relative flex flex-1 flex-col items-center overflow-hidden'>
+        <UsageBanner />
 
         {/* Welcome — shown when no messages */}
         {!hasMessages && !isLoading && (
@@ -240,24 +268,28 @@ const Dashboard = () => {
               </h2>
 
               {/* ── Welcome form ── */}
-              <form
-                onSubmit={handleSubmitMessage}
-                className='w-full flex items-center gap-3 bg-[#0d1017] border border-white/0.13 rounded-2xl px-4 py-3.5'
-              >
-                <input
-                  autoFocus
-                  type='text'
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder='Ask anything...'
-                  className='flex-1 bg-transparent outline-none text-white text-sm placeholder:text-white/40'
-                />
-                <ActionButton
-                  isStreaming={isStreaming}
-                  isLoading={isLoading}
-                  chatInput={chatInput}
-                  onStop={handleStop}
-                />
+              <form onSubmit={handleSubmitMessage} className='w-full flex flex-col gap-2 bg-[#0d1017] border border-white/0.13 rounded-2xl px-4 py-3.5'>
+                <div className='flex items-center gap-3'>
+                  <FileUpload
+                    onFileProcessed={handleFileProcessed}
+                    fileName={fileName}
+                    onClear={handleClearFile}
+                  />
+                  <input
+                    autoFocus
+                    type='text'
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder='Ask anything...'
+                    className='flex-1 bg-transparent outline-none text-white text-sm placeholder:text-white/40'
+                  />
+                  <ActionButton
+                    isStreaming={isStreaming}
+                    isLoading={isLoading}
+                    chatInput={chatInput}
+                    onStop={handleStop}
+                  />
+                </div>
               </form>
 
               <div className='flex flex-wrap justify-center gap-2'>
@@ -277,7 +309,6 @@ const Dashboard = () => {
 
         {/* Messages */}
         {hasMessages && (
-
           <>
             {/* ── Chat header with export button ── */}
             <div className='w-full max-w-2xl flex items-center justify-between px-4 pt-4'>
@@ -357,6 +388,11 @@ const Dashboard = () => {
               onSubmit={handleSubmitMessage}
               className='w-full max-w-2xl flex items-center gap-3 bg-[#0d1017] border border-white/0.13 rounded-2xl px-4 py-3'
             >
+              <FileUpload
+                onFileProcessed={handleFileProcessed}
+                fileName={fileName}
+                onClear={handleClearFile}
+              />
               <input
                 type='text'
                 value={chatInput}

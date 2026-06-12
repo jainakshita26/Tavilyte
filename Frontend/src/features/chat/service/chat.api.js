@@ -26,6 +26,16 @@ export const deleteChat=async(chatId)=>{
 }
 
 export const renameChat = async (chatId, title) => {
-    const { data } = await axiosInstance.patch(`/chats/${chatId}/rename`, { title })
+    const { data } = await api.patch(`/api/chats/${chatId}/rename`, { title })
+    return data
+}
+
+export const uploadFile = async (file) => {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    const { data } = await api.post("/api/chats/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+    })
     return data
 }

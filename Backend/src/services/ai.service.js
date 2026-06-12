@@ -4,7 +4,8 @@ import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages
 import { tool } from "@langchain/core/tools"
 import { createReactAgent } from "@langchain/langgraph/prebuilt"
 import * as z from "zod"
-import { createSearchInternetTool } from "./internet.service.js" // ← updated import
+import { createSearchInternetTool } from "./internet.service.js" 
+import { trackUsage } from "./rateLimiter.js"
 
 const geminiModel = new ChatGoogleGenerativeAI({
   model: "gemini-2.5-flash-lite",
@@ -96,7 +97,15 @@ export async function generateStreamingResponse(messages, onChunk, signal) {
   }).filter(Boolean)
 
   if (signal?.aborted) return { fullText: "", aborted: true }
-
+  // ← track Mistral usage — every agent invocation is one Mistral call (minimum)
+    const mistralStatus = trackUsage("mistral")
+    if (mistralStatus.exceeded) {
+        onUsageWarning?.({ provider: "mistral", type: "exceeded" })
+        return { fullText: "I'm currently unable to respond — usage quota exceeded. Please try again later.", aborted: false }
+    }
+    if (mistralStatus.nearLimit) {
+        onUsageWarning?.({ provider: "mistral", type: "warning", remaining: mistralStatus.max - mistralStatus.count })
+    }
   const agent = createAgent(signal)
 
   let fullText = ""
@@ -159,6 +168,11 @@ export async function generateStreamingResponse(messages, onChunk, signal) {
 }
 
 export async function generateChatTitle(message) {
+  // ← track Mistral usage for title generation too
+    const status = trackUsage("mistral")
+    if (status.exceeded) {
+        return "New Chat"  // fallback — don't block chat creation
+    }
   const response = await mistralModel.invoke([
     new SystemMessage(`You are a helpful assistant that generates concise and descriptive titles 
 for chat conversations. Generate a title in 2-4 words based on the user's first message.
@@ -168,4 +182,23 @@ Return ONLY the title — no quotes, no punctuation, no explanation.`),
   ])
 
   return response.text || response.content
+}
+
+export async function describeImageWithGemini(base64Data, mimeType) {
+    const result = await geminiModel.invoke([
+        new HumanMessage({
+            content: [
+                {
+                    type: "image_url",
+                    image_url: `data:${mimeType};base64,${base64Data}`,
+                },
+                {
+                    type: "text",
+                    text: "Describe this image in detail — objects, text, context, and anything relevant for answering questions about it.",
+                },
+            ],
+        }),
+    ])
+
+    return result.content
 }

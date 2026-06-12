@@ -124,59 +124,58 @@ export async function deleteChat(req, res) {
 }
 
 
-export async function handleSocketMessage({ message, chatId, userId,signal, onChunk, onChatCreated }) {
+export async function handleSocketMessage({ message, chatId, userId, fileContext, signal, onChunk, onChatCreated, onUsageWarning }) {
     let chat = null
     if (!chatId) {
         const title = await generateChatTitle(message)
         chat = await chatModel.create({ user: userId, title })
 
-        // notify FIRST
         onChatCreated(chat._id.toString(), chat.title)
-
-        // ✅ small delay so frontend processes chatCreated before first chunk
         await new Promise(resolve => setTimeout(resolve, 100))
     } else {
         chat = await chatModel.findById(chatId)
         onChatCreated(chat._id.toString(), chat.title)
     }
 
+    if (signal?.aborted) return { chat, aborted: true }
+
+    const enrichedMessage = fileContext
+        ? `[Attached file content]\n${fileContext}\n\n[User question]\n${message}`
+        : message
+
     await messageModel.create({
         chat: chat._id,
-        content: message,
+        content: message,   // ← clean message saved to DB
         role: "user"
     })
 
     const messages = await messageModel.find({ chat: chat._id })
 
-    // let fullResponse = ""
-    // await generateStreamingResponse(messages, (chunk) => {
-    //     fullResponse += chunk
-    //     onChunk(chunk)
-    // })
+    if (fileContext && messages.length) {
+        messages[messages.length - 1] = {
+            ...messages[messages.length - 1].toObject(),
+            content: enrichedMessage   // ← AI sees enriched version only
+        }
+    }
 
-    // if (fullResponse.trim()) {
-    //     await messageModel.create({
-    //         chat: chat._id,
-    //         content: fullResponse,
-    //         role: "ai"
-    //     })
-    // }
-
-    // return { chat }
     const { fullText, aborted } = await generateStreamingResponse(
         messages,
         (chunk) => {
-            if (!signal?.aborted) onChunk(chunk)  // double-guard at emit level
+            if (!signal?.aborted) onChunk(chunk)
         },
-        signal   // ← pass signal as third argument
+        signal,
+        onUsageWarning
     )
 
     if (fullText.trim()) {
-        await messageModel.create({
-            chat: chat._id,
-            content: fullText,
-            role: "ai"
-        })
+        const chatStillExists = await chatModel.exists({ _id: chat._id })
+        if (chatStillExists) {
+            await messageModel.create({
+                chat: chat._id,
+                content: fullText,
+                role: "ai"
+            })
+        }
     }
 
     return { chat, aborted }
