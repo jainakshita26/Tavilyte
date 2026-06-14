@@ -5,9 +5,10 @@ let socket; // keep it outside so we can reuse it
 export const initializeSocketConnection = () => {
     if (socket?.connected) return socket // don't reconnect if already connected
 
-    socket = io("http://localhost:3000", {
-        withCredentials: true,
-    })
+    // socket = io("http://localhost:3000", {
+    //     withCredentials: true,
+    // })
+    socket = io(import.meta.env.VITE_BACKEND_URL, { withCredentials: true })
 
     socket.on("connect", () => {
         console.log("Connected to Socket.IO:", socket.id)

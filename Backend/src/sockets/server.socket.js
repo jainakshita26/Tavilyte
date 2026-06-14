@@ -7,7 +7,8 @@ const activeStreams = new Map()
 export function initSocket(httpServer) {
     io = new Server(httpServer, {
         cors: {
-            origin: 'http://localhost:5173',
+            // origin: 'http://localhost:5173',
+            origin:process.env.CLIENT_URL,
             credentials: true,
         }
     })
