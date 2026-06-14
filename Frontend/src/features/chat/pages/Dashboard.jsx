@@ -1,11 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { useSelector } from 'react-redux'
+import { useSelector,useDispatch } from 'react-redux'
+import { useNavigate } from 'react-router-dom'
 import { useChat } from '../hooks/useChat'
 import remarkGfm from 'remark-gfm'
 import { UsageBanner } from '../../../components/UsageBannner'
 import { ExportButton } from '../../../components/exportButton'
 import { FileUpload } from '../../../components/FileUpload'
+import { clearUser } from '../../auth/auth.slice.js'
+import { resetChats } from '../chat.slice.js'
+import { logout } from '../../auth/service/auth.api.js'
 
 const SUGGESTIONS = [
   "What's in the news today?",
@@ -45,6 +49,8 @@ const ActionButton = ({ isStreaming, isLoading, chatInput, onStop }) => {
 
 const Dashboard = () => {
   const chat = useChat()
+  const dispatch = useDispatch() 
+  const navigate=useNavigate()
   const [chatInput, setChatInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [editingChatId, setEditingChatId] = useState(null)
@@ -57,6 +63,7 @@ const Dashboard = () => {
   const isLoading = useSelector((state) => state.chat.isLoading)
   const messagesEndRef = useRef(null)
   const menuRef = useRef(null)
+  
 
   useEffect(() => {
     chat.initializeSocket()
@@ -95,6 +102,13 @@ const Dashboard = () => {
   const handleClearFile = () => {
     setFileContext(null)
     setFileName(null)
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    dispatch(clearUser())                          // clear Redux auth state
+    dispatch(resetChats())
+    navigate('/login')
   }
 
   const handleSubmitMessage = (e) => {
@@ -208,7 +222,10 @@ const Dashboard = () => {
                     <circle cx='8' cy='13.5' r='1.4' />
                   </svg>
                 </button>
+
+
               )}
+              
 
               {/* ── Dropdown menu ── */}
               {openMenuId === c.id && (
@@ -248,10 +265,23 @@ const Dashboard = () => {
                     </svg>
                     Delete
                   </button>
+                  
                 </div>
+
               )}
             </div>
           ))}
+          {/* Bottom of sidebar, after the chat list */}
+              <button
+                onClick={handleLogout}
+                className='flex items-center gap-2 w-full px-2.5 py-2 mt-auto rounded-xl text-white/50 text-sm hover:bg-white/5 hover:text-white/80 transition'
+              >
+                <svg className='w-4 h-4 fill-white/40' viewBox='0 0 16 16'>
+                  <path fillRule='evenodd' d='M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z' />
+                  <path fillRule='evenodd' d='M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z' />
+                </svg>
+                Logout
+              </button>
         </div>
       </aside>
 
