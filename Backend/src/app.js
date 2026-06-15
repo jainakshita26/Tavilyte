@@ -22,7 +22,7 @@ app.get('/',(req,res)=>{
     res.json({message:"server is running"})
 })
 app.use('/api/auth',authRouter)
-
+app.use('/api/upload', uploadRoutes)
 app.use('/api/chats',chatRouter)
 
 
