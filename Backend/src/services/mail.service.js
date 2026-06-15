@@ -13,6 +13,7 @@ transporter.verify()
     .catch((err) => console.error("❌ Email transporter error:", err.message))
 
 export async function sendEmail({ to, subject, html, text }) {
+    console.log('Sendgin mail')
     try {
         const mailOptions = {
             from: `Tavilyte <${process.env.EMAIL_USER}>`,

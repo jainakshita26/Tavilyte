@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { sendEmail } from "../services/mail.service.js";
 
 export async function register(req,res){
+    console.log('in register controller')
     const {username,email,password}=req.body
     console.log("Register attempt:", { username, email }) 
 
@@ -32,7 +33,7 @@ export async function register(req,res){
     const emailVerificationToken=jwt.sign({
         email:user.email
     },process.env.JWT_SECRET,{expiresIn:'1d'})
-
+    console.log('in register sending email')
     await sendEmail({
         to:email,
         subject:"Welcome to Perplexity!",
