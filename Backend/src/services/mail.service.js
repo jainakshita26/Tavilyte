@@ -41,7 +41,7 @@ export async function sendEmail({ to, subject, html, text }) {
     console.log('Sending email to:', to)
     try {
         const { data, error } = await resend.emails.send({
-            from: 'jainakshita9886@gmail.com',
+            from: 'Tavilyte <onboarding@resend.dev>',
             to,
             subject,
             html,
