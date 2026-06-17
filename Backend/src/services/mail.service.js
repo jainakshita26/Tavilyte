@@ -33,28 +33,53 @@
 //     }
 // }
 
-import { Resend } from 'resend'
+// import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// const resend = new Resend(process.env.RESEND_API_KEY)
+
+// export async function sendEmail({ to, subject, html, text }) {
+//     console.log('Sending email to:', to)
+//     try {
+//         const { data, error } = await resend.emails.send({
+//             from: 'Tavilyte <onboarding@resend.dev>',
+//             to,
+//             subject,
+//             html,
+//             text
+//         })
+
+//         if (error) {
+//             console.error("❌ Email failed:", error)
+//             throw new Error(error.message)
+//         }
+
+//         console.log("✅ Email sent | id:", data.id)
+//         return data
+
+//     } catch (err) {
+//         console.error("❌ Email error:", err.message)
+//         throw err
+//     }
+// }
+
+import * as Brevo from '@getbrevo/brevo'
+
+const client = new Brevo.TransactionalEmailsApi()
+client.authentications['apiKey'].apiKey = process.env.BREVO_API_KEY
 
 export async function sendEmail({ to, subject, html, text }) {
     console.log('Sending email to:', to)
     try {
-        const { data, error } = await resend.emails.send({
-            from: 'Tavilyte <onboarding@resend.dev>',
-            to,
-            subject,
-            html,
-            text
-        })
+        const email = new Brevo.SendSmtpEmail()
+        email.to = [{ email: to }]
+        email.subject = subject
+        email.htmlContent = html
+        email.textContent = text
+        email.sender = { name: 'Tavilyte', email: process.env.BREVO_SENDER_EMAIL }
 
-        if (error) {
-            console.error("❌ Email failed:", error)
-            throw new Error(error.message)
-        }
-
-        console.log("✅ Email sent | id:", data.id)
-        return data
+        const result = await client.sendTransacEmail(email)
+        console.log("✅ Email sent | id:", result.response.statusCode)
+        return result
 
     } catch (err) {
         console.error("❌ Email error:", err.message)

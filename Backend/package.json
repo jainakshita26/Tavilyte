@@ -12,6 +12,7 @@
   "type": "module",
   "description": "",
   "dependencies": {
+    "@getbrevo/brevo": "^5.0.4",
     "@langchain/google-genai": "^2.1.26",
     "@langchain/langgraph": "^1.2.9",
     "@langchain/mistralai": "^1.0.7",
