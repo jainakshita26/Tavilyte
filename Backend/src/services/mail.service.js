@@ -1,21 +1,32 @@
-import * as Brevo from '@getbrevo/brevo'
+import nodemailer from 'nodemailer'
 
-const client = new Brevo.TransactionalEmailsApi()
-client.authentications['apiKey'].apiKey = process.env.BREVO_API_KEY
+const transporter = nodemailer.createTransport({
+    host: 'smtp-relay.brevo.com',
+    port: 2525,
+    secure: false,
+    auth: {
+        user: process.env.BREVO_SMTP_USER,  // your Brevo login email
+        pass: process.env.BREVO_SMTP_PASS,  // Brevo SMTP key (not API key)
+    }
+})
+
+transporter.verify()
+    .then(() => console.log("✅ Email transporter ready"))
+    .catch((err) => console.error("❌ Email transporter error:", err.message))
 
 export async function sendEmail({ to, subject, html, text }) {
     console.log('Sending email to:', to)
     try {
-        const email = new Brevo.SendSmtpEmail()
-        email.to = [{ email: to }]
-        email.subject = subject
-        email.htmlContent = html
-        email.textContent = text
-        email.sender = { name: 'Tavilyte', email: process.env.BREVO_SENDER_EMAIL }
+        const mailOptions = {
+from: `Tavilyte <${process.env.BREVO_SENDER_EMAIL}>`,            to,
+            subject,
+            html,
+            text
+        }
 
-        const result = await client.sendTransacEmail(email)
-        console.log("✅ Email sent | id:", result.response.statusCode)
-        return result
+        const details = await transporter.sendMail(mailOptions)
+        console.log("✅ Email sent | messageId:", details.messageId)
+        return details
 
     } catch (err) {
         console.error("❌ Email error:", err.message)

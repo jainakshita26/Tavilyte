@@ -4,9 +4,14 @@ const api=axios.create({
     baseURL:import.meta.env.VITE_API_URL,
     withCredentials:true             //so that server can access cookie 
 })
+console.log('API baseURL:', import.meta.env.VITE_API_URL)
+
 
 export async function register({email,username,password}){
+    console.log('Enail',email)
+    console.log('pas',password)
     const response=await api.post('/auth/register',{email,username,password})
+    console.log('Response ',response)
     return response.data
 }
 
