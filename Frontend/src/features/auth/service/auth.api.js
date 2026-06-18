@@ -29,3 +29,8 @@ export async function logout() {
     const response = await api.post('/auth/logout')
     return response.data
 }
+
+export async function resendVerificationEmail({ email }) {
+    const response = await api.post('/auth/resend-verification', { email })
+    return response.data
+}

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { useSelector,useDispatch } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { useChat } from '../hooks/useChat'
 import remarkGfm from 'remark-gfm'
@@ -33,7 +33,6 @@ const ActionButton = ({ isStreaming, isLoading, chatInput, onStop }) => {
       </button>
     )
   }
-
   return (
     <button
       type='submit'
@@ -49,21 +48,21 @@ const ActionButton = ({ isStreaming, isLoading, chatInput, onStop }) => {
 
 const Dashboard = () => {
   const chat = useChat()
-  const dispatch = useDispatch() 
-  const navigate=useNavigate()
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
   const [chatInput, setChatInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [editingChatId, setEditingChatId] = useState(null)
   const [editTitle, setEditTitle] = useState('')
   const [openMenuId, setOpenMenuId] = useState(null)
-  const [fileContext, setFileContext] = useState(null)   // ← added
-  const [fileName, setFileName] = useState(null)          // ← added
+  const [fileContext, setFileContext] = useState(null)
+  const [fileName, setFileName] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const chats = useSelector((state) => state.chat.chats)
   const currentChatId = useSelector((state) => state.chat.currentChatId)
   const isLoading = useSelector((state) => state.chat.isLoading)
   const messagesEndRef = useRef(null)
   const menuRef = useRef(null)
-  
 
   useEffect(() => {
     chat.initializeSocket()
@@ -88,25 +87,17 @@ const Dashboard = () => {
     .filter(c => c.title?.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated))
 
-  // ← added: handlers for file upload
   const handleFileProcessed = (extractedContent, name, fileType) => {
-    if (!extractedContent) {
-      setFileContext(null)
-      setFileName(null)
-      return
-    }
+    if (!extractedContent) { setFileContext(null); setFileName(null); return }
     setFileContext({ content: extractedContent, type: fileType })
     setFileName(name)
   }
 
-  const handleClearFile = () => {
-    setFileContext(null)
-    setFileName(null)
-  }
+  const handleClearFile = () => { setFileContext(null); setFileName(null) }
 
   const handleLogout = async () => {
     await logout()
-    dispatch(clearUser())                          // clear Redux auth state
+    dispatch(clearUser())
     dispatch(resetChats())
     navigate('/login')
   }
@@ -115,13 +106,7 @@ const Dashboard = () => {
     e.preventDefault()
     const trimmed = chatInput.trim()
     if (!trimmed && !fileContext) return
-
-    chat.handleSendMessage({
-      message: trimmed,
-      chatId: currentChatId,
-      fileContext: fileContext?.content || null,
-    })
-
+    chat.handleSendMessage({ message: trimmed, chatId: currentChatId, fileContext: fileContext?.content || null })
     setChatInput('')
     handleClearFile()
   }
@@ -130,181 +115,197 @@ const Dashboard = () => {
     chat.handleSendMessage({ message: text, chatId: currentChatId })
   }
 
-  const handleStop = () => {
-    chat.handleStopGeneration(currentChatId)
-  }
+  const handleStop = () => chat.handleStopGeneration(currentChatId)
 
   const commitRename = (chatId) => {
     const trimmed = editTitle.trim()
-    if (trimmed && trimmed !== chats[chatId]?.title) {
-      chat.handleRenameChat(chatId, trimmed)
-    }
+    if (trimmed && trimmed !== chats[chatId]?.title) chat.handleRenameChat(chatId, trimmed)
     setEditingChatId(null)
   }
 
   const hasMessages = chats[currentChatId]?.messages?.length > 0
   const isStreaming = chats[currentChatId]?.messages?.some(m => m.streaming)
 
+  const SidebarContent = () => (
+    <>
+      <h1 className='text-2xl font-semibold px-2 mb-4 tracking-tight'>Tavilyte</h1>
+
+      <button
+        onClick={() => { chat.handleNewChat(); setSidebarOpen(false) }}
+        className='flex items-center gap-2 w-full px-2.5 py-2 mb-3 rounded-xl border border-white/10 text-white/80 text-sm hover:bg-white/5 hover:text-white transition'
+      >
+        <span className='text-sm leading-none'>+</span>
+        New chat
+      </button>
+
+      <div className='relative mb-3'>
+        <svg className='absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 fill-white/30' viewBox='0 0 16 16'>
+          <path d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.415l-3.868-3.833zm-5.242 1.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z' />
+        </svg>
+        <input
+          type='text'
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder='Search chats...'
+          className='w-full bg-white/[0.04] border border-white/[0.08] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-white/50 outline-none focus:border-white/20 transition'
+        />
+      </div>
+
+      <p className='text-[10.5px] uppercase tracking-widest text-white/45 px-2 mb-2'>Recent</p>
+
+      <div className='flex flex-col gap-0.5 overflow-y-auto flex-1'>
+        {filteredChats.map((c, i) => (
+          <div
+            key={i}
+            className={`group relative flex items-center gap-1 rounded-lg transition
+              ${c.id === currentChatId ? 'bg-white/[0.07]' : 'hover:bg-white/5'}`}
+          >
+            {editingChatId === c.id ? (
+              <input
+                autoFocus
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onBlur={() => commitRename(c.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitRename(c.id)
+                  if (e.key === 'Escape') setEditingChatId(null)
+                }}
+                className='flex-1 bg-white/10 border border-white/20 rounded-md px-2 py-1 text-[13px] text-white outline-none mx-1'
+              />
+            ) : (
+              <button
+                onClick={() => { chat.handleOpenChat(c.id, chats); setSidebarOpen(false) }}
+                className={`flex-1 text-left px-2.5 py-1.5 text-[13px] truncate
+                  ${c.id === currentChatId ? 'text-white' : 'text-white/75 group-hover:text-white/85'}`}
+              >
+                {c.title}
+              </button>
+            )}
+
+            {editingChatId !== c.id && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpenMenuId(openMenuId === c.id ? null : c.id)
+                }}
+                className={`p-1 mr-1 rounded-md hover:bg-white/10 transition flex-shrink-0
+                  ${openMenuId === c.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                aria-label="Chat options"
+              >
+                <svg className='w-3.5 h-3.5 fill-white/50 hover:fill-white/90' viewBox='0 0 16 16'>
+                  <circle cx='8' cy='2.5' r='1.4' />
+                  <circle cx='8' cy='8' r='1.4' />
+                  <circle cx='8' cy='13.5' r='1.4' />
+                </svg>
+              </button>
+            )}
+
+            {openMenuId === c.id && (
+              <div
+                ref={menuRef}
+                className='absolute right-0 top-full mt-1 z-20 w-32 bg-[#1a1d27] border border-white/10 rounded-lg shadow-lg overflow-hidden'
+              >
+                <button
+                  onClick={() => { setEditingChatId(c.id); setEditTitle(c.title); setOpenMenuId(null) }}
+                  className='flex items-center gap-2 w-full px-3 py-2 text-[13px] text-white/80 hover:bg-white/10 transition text-left'
+                >
+                  <svg className='w-3.5 h-3.5 fill-white/50' viewBox='0 0 16 16'>
+                    <path d='M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5z' />
+                  </svg>
+                  Rename
+                </button>
+                <button
+                  onClick={() => {
+                    if (c.id === currentChatId && isStreaming) chat.handleStopGeneration(c.id)
+                    chat.handleDeleteChat(c.id, currentChatId, chats)
+                    setOpenMenuId(null)
+                  }}
+                  className='flex items-center gap-2 w-full px-3 py-2 text-[13px] text-red-400 hover:bg-white/10 transition text-left'
+                >
+                  <svg className='w-3.5 h-3.5 fill-red-400' viewBox='0 0 16 16'>
+                    <path d='M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z' />
+                    <path fillRule='evenodd' d='M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z' />
+                  </svg>
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+
+        <button
+          onClick={handleLogout}
+          className='flex items-center gap-2 w-full px-2.5 py-2 mt-auto rounded-xl text-white/50 text-sm hover:bg-white/5 hover:text-white/80 transition'
+        >
+          <svg className='w-4 h-4 fill-white/40' viewBox='0 0 16 16'>
+            <path fillRule='evenodd' d='M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z' />
+            <path fillRule='evenodd' d='M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z' />
+          </svg>
+          Logout
+        </button>
+      </div>
+    </>
+  )
+
   return (
     <main className='flex h-screen w-full overflow-hidden bg-[#07090f] text-white'>
 
-      {/* ── Sidebar ── */}
-      <aside className='hidden md:flex h-full w-56 shrink-0 flex-col bg-[#0d1017] border-r border-white/[0.07] px-2.5 py-5'>
-        <h1 className='text-2xl font-semibold px-2 mb-4 tracking-tight'>Tavilyte</h1>
+      {/* ── Overlay (mobile only) ── */}
+      {sidebarOpen && (
+        <div
+          className='fixed inset-0 z-40 bg-black/60 md:hidden'
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-        <button
-          onClick={() => chat.handleNewChat()}
-          className='flex items-center gap-2 w-full px-2.5 py-2 mb-3 rounded-xl border border-white/10 text-white/80 text-sm hover:bg-white/5 hover:text-white transition'
-        >
-          <span className='flex items-center justify-center w-18px h-18px rounded-md bg-white/0.08 text-sm leading-none'>+</span>
-          New chat
-        </button>
-
-        {/* Search box */}
-        <div className='relative mb-3'>
-          <svg className='absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 fill-white/30' viewBox='0 0 16 16'>
-            <path d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.415l-3.868-3.833zm-5.242 1.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z' />
-          </svg>
-          <input
-            type='text'
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder='Search chats...'
-            className='w-full bg-white/0.04 border border-white/0.08 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-white/50 outline-none focus:border-white/20 transition'
-          />
-        </div>
-
-        <p className='text-[10.5px] uppercase tracking-widest text-white/45 px-2 mb-2'>Recent</p>
-
-        <div className='flex flex-col gap-0.5 overflow-y-auto flex-1'>
-          {filteredChats.map((c, i) => (
-            <div
-              key={i}
-              className={`group relative flex items-center gap-1 rounded-lg transition
-                ${c.id === currentChatId ? 'bg-white/[0.07]' : 'hover:bg-white/5'}`}
-            >
-              {editingChatId === c.id ? (
-                <input
-                  autoFocus
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  onBlur={() => commitRename(c.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitRename(c.id)
-                    if (e.key === 'Escape') setEditingChatId(null)
-                  }}
-                  className='flex-1 bg-white/10 border border-white/20 rounded-md px-2 py-1 text-[13px] text-white outline-none mx-1'
-                />
-              ) : (
-                <button
-                  onClick={() => chat.handleOpenChat(c.id, chats)}
-                  className={`flex-1 text-left px-2.5 py-1.5 text-[13px] truncate
-                    ${c.id === currentChatId ? 'text-white' : 'text-white/75 group-hover:text-white/85'}`}
-                >
-                  {c.title}
-                </button>
-              )}
-
-              {editingChatId !== c.id && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpenMenuId(openMenuId === c.id ? null : c.id)
-                  }}
-                  className={`p-1 mr-1 rounded-md hover:bg-white/10 transition flex-shrink-0
-                    ${openMenuId === c.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                  aria-label="Chat options"
-                >
-                  <svg className='w-3.5 h-3.5 fill-white/50 hover:fill-white/90' viewBox='0 0 16 16'>
-                    <circle cx='8' cy='2.5' r='1.4' />
-                    <circle cx='8' cy='8' r='1.4' />
-                    <circle cx='8' cy='13.5' r='1.4' />
-                  </svg>
-                </button>
-
-
-              )}
-              
-
-              {/* ── Dropdown menu ── */}
-              {openMenuId === c.id && (
-                <div
-                  ref={menuRef}
-                  className='absolute right-0 top-full mt-1 z-20 w-32 bg-[#1a1d27] border border-white/10 rounded-lg shadow-lg overflow-hidden'
-                >
-                  <button
-                    onClick={() => {
-                      setEditingChatId(c.id)
-                      setEditTitle(c.title)
-                      setOpenMenuId(null)
-                    }}
-                    className='flex items-center gap-2 w-full px-3 py-2 text-[13px] text-white/80 hover:bg-white/10 transition text-left'
-                  >
-                    <svg className='w-3.5 h-3.5 fill-white/50' viewBox='0 0 16 16'>
-                      <path d='M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5z' />
-                    </svg>
-                    Rename
-                  </button>
-                  <button
-                    onClick={() => {
-                      const isChatStreaming = c.id === currentChatId && isStreaming
-
-                      if (isChatStreaming) {
-                        chat.handleStopGeneration(c.id)
-                      }
-
-                      chat.handleDeleteChat(c.id, currentChatId, chats)
-                      setOpenMenuId(null)
-                    }}
-                    className='flex items-center gap-2 w-full px-3 py-2 text-[13px] text-red-400 hover:bg-white/10 transition text-left'
-                  >
-                    <svg className='w-3.5 h-3.5 fill-red-400' viewBox='0 0 16 16'>
-                      <path d='M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z' />
-                      <path fillRule='evenodd' d='M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z' />
-                    </svg>
-                    Delete
-                  </button>
-                  
-                </div>
-
-              )}
-            </div>
-          ))}
-          {/* Bottom of sidebar, after the chat list */}
-              <button
-                onClick={handleLogout}
-                className='flex items-center gap-2 w-full px-2.5 py-2 mt-auto rounded-xl text-white/50 text-sm hover:bg-white/5 hover:text-white/80 transition'
-              >
-                <svg className='w-4 h-4 fill-white/40' viewBox='0 0 16 16'>
-                  <path fillRule='evenodd' d='M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z' />
-                  <path fillRule='evenodd' d='M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z' />
-                </svg>
-                Logout
-              </button>
-        </div>
+      {/* ── Unified Sidebar ── */}
+      <aside className={`
+        fixed md:relative z-50 md:z-auto
+        h-full w-64 md:w-56 shrink-0 flex flex-col
+        bg-[#0d1017] border-r border-white/[0.07] px-2.5 py-5
+        transition-transform duration-300
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <SidebarContent />
       </aside>
 
       {/* ── Main ── */}
       <section className='relative flex flex-1 flex-col items-center overflow-hidden'>
         <UsageBanner />
 
+        {/* ── Top bar with hamburger ── */}
+        <div className='flex w-full items-center justify-between px-4 py-3 border-b border-white/[0.07] bg-[#0d1017] shrink-0'>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className='p-1.5 rounded-lg hover:bg-white/10 transition'
+            aria-label="Toggle menu"
+          >
+            {sidebarOpen ? (
+              <svg className='w-5 h-5 fill-white/70' viewBox='0 0 16 16'>
+                <path d='M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z' />
+              </svg>
+            ) : (
+              <svg className='w-5 h-5 fill-white/70' viewBox='0 0 16 16'>
+                <path fillRule='evenodd' d='M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z' />
+              </svg>
+            )}
+          </button>
+          <span className='text-sm font-semibold text-white/80'>Tavilyte</span>
+          <div className='w-8' />
+        </div>
+
         {/* Welcome — shown when no messages */}
         {!hasMessages && !isLoading && (
           <div className='flex flex-1 flex-col items-center justify-center w-full px-4'>
             <div className='w-full max-w-xl flex flex-col items-center gap-5'>
-              <h2 className='text-[28px] font-semibold tracking-tight text-white'>
+              <h2 className='text-[28px] font-semibold tracking-tight text-white text-center'>
                 What do you want to know?
               </h2>
 
-              {/* ── Welcome form ── */}
-              <form onSubmit={handleSubmitMessage} className='w-full flex flex-col gap-2 bg-[#0d1017] border border-white/0.13 rounded-2xl px-4 py-3.5'>
+              <form onSubmit={handleSubmitMessage} className='w-full flex flex-col gap-2 bg-[#0d1017] border border-white/[0.13] rounded-2xl px-4 py-3.5'>
                 <div className='flex items-center gap-3'>
-                  <FileUpload
-                    onFileProcessed={handleFileProcessed}
-                    fileName={fileName}
-                    onClear={handleClearFile}
-                  />
+                  <FileUpload onFileProcessed={handleFileProcessed} fileName={fileName} onClear={handleClearFile} />
                   <input
                     autoFocus
                     type='text'
@@ -313,12 +314,7 @@ const Dashboard = () => {
                     placeholder='Ask anything...'
                     className='flex-1 bg-transparent outline-none text-white text-sm placeholder:text-white/40'
                   />
-                  <ActionButton
-                    isStreaming={isStreaming}
-                    isLoading={isLoading}
-                    chatInput={chatInput}
-                    onStop={handleStop}
-                  />
+                  <ActionButton isStreaming={isStreaming} isLoading={isLoading} chatInput={chatInput} onStop={handleStop} />
                 </div>
               </form>
 
@@ -327,7 +323,7 @@ const Dashboard = () => {
                   <button
                     key={s}
                     onClick={() => handleSuggestion(s)}
-                    className='px-3.5 py-1.5 rounded-full border border-white/10 bg-white/0.03 text-white/45 text-xs hover:border-white/20 hover:text-white/80 hover:bg-white/0.06 transition'
+                    className='px-3.5 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-white/45 text-xs hover:border-white/20 hover:text-white/80 transition'
                   >
                     {s}
                   </button>
@@ -340,7 +336,6 @@ const Dashboard = () => {
         {/* Messages */}
         {hasMessages && (
           <>
-            {/* ── Chat header with export button ── */}
             <div className='w-full max-w-2xl flex items-center justify-between px-4 pt-4'>
               <h3 className='text-sm font-medium text-white/70 truncate'>
                 {chats[currentChatId]?.title}
@@ -348,14 +343,13 @@ const Dashboard = () => {
               <ExportButton chat={chats[currentChatId]} />
             </div>
 
-            <div className='flex-1 w-full max-w-2xl overflow-y-auto px-4 pt-10 pb-36 flex flex-col gap-4'>
-
+            <div className='flex-1 w-full max-w-2xl overflow-y-auto px-4 pt-4 pb-36 flex flex-col gap-4'>
               {chats[currentChatId]?.messages.map((message, i) => (
                 <div
                   key={i}
                   className={`w-fit max-w-[82%] text-sm md:text-base leading-relaxed
-                  ${message.role === 'user'
-                      ? 'ml-auto bg-white/0.08 rounded-2xl rounded-br-sm px-4 py-2.5 text-white'
+                    ${message.role === 'user'
+                      ? 'ml-auto bg-white/[0.08] rounded-2xl rounded-br-sm px-4 py-2.5 text-white'
                       : 'mr-auto text-white/80'
                     }`}
                 >
@@ -376,16 +370,13 @@ const Dashboard = () => {
                         {message.content}
                       </ReactMarkdown>
                       {message.isPartial && (
-                        <p className='text-[11px] text-white/30 mt-1'>
-                          ⚠ Response stopped
-                        </p>
+                        <p className='text-[11px] text-white/30 mt-1'>⚠ Response stopped</p>
                       )}
                     </>
                   )}
                 </div>
               ))}
 
-              {/* ── Thinking indicator ── */}
               {isLoading && !isStreaming && (
                 <div className='flex items-center gap-2 mr-auto px-1 py-2'>
                   <div className='flex gap-1'>
@@ -397,7 +388,6 @@ const Dashboard = () => {
                 </div>
               )}
 
-              {/* ── Streaming indicator ── */}
               {isStreaming && (
                 <div className='flex items-center gap-1 px-1 py-2 mr-auto'>
                   <span className='w-1.5 h-1.5 rounded-full bg-white/40 animate-bounce [animation-delay:0ms]' />
@@ -413,16 +403,12 @@ const Dashboard = () => {
 
         {/* Floating input bar */}
         {hasMessages && (
-          <div className='absolute bottom-0 left-0 right-0 flex justify-center px-4 pb-5 pt-12 bg-gradient-to- from-[#07090f] via-[#07090f]/80 to-transparent'>
+          <div className='absolute bottom-0 left-0 right-0 flex justify-center px-4 pb-5 pt-12 bg-gradient-to-t from-[#07090f] via-[#07090f]/80 to-transparent'>
             <form
               onSubmit={handleSubmitMessage}
-              className='w-full max-w-2xl flex items-center gap-3 bg-[#0d1017] border border-white/0.13 rounded-2xl px-4 py-3'
+              className='w-full max-w-2xl flex items-center gap-3 bg-[#0d1017] border border-white/[0.13] rounded-2xl px-4 py-3'
             >
-              <FileUpload
-                onFileProcessed={handleFileProcessed}
-                fileName={fileName}
-                onClear={handleClearFile}
-              />
+              <FileUpload onFileProcessed={handleFileProcessed} fileName={fileName} onClear={handleClearFile} />
               <input
                 type='text'
                 value={chatInput}
@@ -430,16 +416,10 @@ const Dashboard = () => {
                 placeholder='Ask anything...'
                 className='flex-1 bg-transparent outline-none text-white text-sm placeholder:text-white/40'
               />
-              <ActionButton
-                isStreaming={isStreaming}
-                isLoading={isLoading}
-                chatInput={chatInput}
-                onStop={handleStop}
-              />
+              <ActionButton isStreaming={isStreaming} isLoading={isLoading} chatInput={chatInput} onStop={handleStop} />
             </form>
           </div>
         )}
-
       </section>
     </main>
   )
