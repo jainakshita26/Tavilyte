@@ -25,18 +25,20 @@ export function FileUpload({ onFileProcessed, fileName, onClear }) {
         }
     }
 
+    const isPdf = fileName?.toLowerCase().endsWith('.pdf')
+
     return (
         <div className='flex items-center gap-2'>
             <label
                 htmlFor="file-input"
-                className='flex items-center justify-center w-8 h-8 rounded-lg bg-white/0.08 border border-white/10 hover:bg-white/[0.14] cursor-pointer transition flex-shrink-0'
+                className='flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-850 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-750 text-zinc-400 hover:text-zinc-200 cursor-pointer transition-all duration-200 flex-shrink-0 shadow-sm active:scale-[0.97]'
                 title="Attach PDF or image"
             >
                 {uploading ? (
-                    <span className='w-3 h-3 border-2 border-white/30 border-t-white/80 rounded-full animate-spin' />
+                    <span className='w-4.5 h-4.5 border-2 border-zinc-700 border-t-cyan-400 rounded-full animate-spin' />
                 ) : (
-                    <svg className='w-3.5 h-3.5 fill-white/60' viewBox='0 0 16 16'>
-                        <path d='M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 0 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 0 1-7 0V3z'/>
+                    <svg className='w-4.5 h-4.5 text-zinc-400 hover:text-cyan-400 transition-colors duration-150' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                     </svg>
                 )}
             </label>
@@ -49,14 +51,30 @@ export function FileUpload({ onFileProcessed, fileName, onClear }) {
             />
 
             {fileName && (
-                <span className='flex items-center gap-1.5 bg-white/0.06 border border-white/10 rounded-full px-2.5 py-1 text-xs text-white/70 max-w-[140px]'>
-                    <span className='truncate'>{fileName}</span>
-                    <button onClick={onClear} className='hover:text-white flex-shrink-0'>✕</button>
+                <span className={`flex items-center gap-2 border rounded-full pl-2.5 pr-2 py-1 text-xs max-w-[150px] shadow-sm select-none transition-all duration-200
+                    ${isPdf 
+                      ? 'bg-red-500/10 border-red-500/20 text-red-300' 
+                      : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'}`}>
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      {isPdf ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      )}
+                    </svg>
+                    <span className='truncate font-medium'>{fileName}</span>
+                    <button 
+                      onClick={onClear} 
+                      className='hover:opacity-75 transition-opacity flex-shrink-0 cursor-pointer p-0.5 rounded-full hover:bg-white/10'
+                      title="Remove file"
+                    >
+                      ✕
+                    </button>
                 </span>
             )}
 
             {error && (
-                <span className='text-xs text-red-400'>{error}</span>
+                <span className='text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full animate-pulse select-none'>{error}</span>
             )}
         </div>
     )

@@ -6,13 +6,13 @@ export function ExportButton({ chat }) {
     return (
         <button
             onClick={() => exportChatAsPDF(chat)}
-            title="Export as PDF"
-            className="p-1.5 rounded-md hover:bg-white/10 transition"
+            title="Export this conversation as PDF"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700/80 hover:text-white text-zinc-300 text-xs font-semibold cursor-pointer shadow-sm transition-all duration-200 active:scale-[0.98]"
         >
-            <svg className="w-4 h-4 fill-white/50 hover:fill-white/90" viewBox="0 0 16 16">
-                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+            <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
+            Export PDF
         </button>
     )
 }
