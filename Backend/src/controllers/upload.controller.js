@@ -1,5 +1,7 @@
-import * as pdfParseModule from "pdf-parse"
-const pdfParse = pdfParseModule.default || pdfParseModule
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const PDFParser = require('pdf2json')
+
 import { describeImageWithGemini } from "../services/ai.service.js"
 
 export async function handleUpload(req, res) {
@@ -14,8 +16,7 @@ export async function handleUpload(req, res) {
         let fileType = ""
 
         if (file.mimetype === "application/pdf") {
-            const parsed = await pdfParse(file.buffer)
-            extractedContent = parsed.text.slice(0, 12000) // token safety cap
+            extractedContent = await extractPdfText(file.buffer)
             fileType = "pdf"
 
             if (!extractedContent.trim()) {
@@ -37,8 +38,24 @@ export async function handleUpload(req, res) {
         })
 
     } catch (err) {
-        console.error("Upload processing error:", err.message)
+        console.error("Upload error:", err.message)
         res.status(500).json({ message: "Failed to process file" })
     }
-    // file.buffer is never written anywhere — garbage collected after this function
+}
+
+function extractPdfText(buffer) {
+    return new Promise((resolve, reject) => {
+        const pdfParser = new PDFParser(null, 1)
+
+        pdfParser.on("pdfParser_dataError", (err) => {
+            reject(new Error(err.parserError))
+        })
+
+        pdfParser.on("pdfParser_dataReady", () => {
+            const text = pdfParser.getRawTextContent()
+            resolve(text.slice(0, 12000))
+        })
+
+        pdfParser.parseBuffer(buffer)
+    })
 }
