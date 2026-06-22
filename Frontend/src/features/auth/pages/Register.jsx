@@ -25,10 +25,12 @@ const Register = () => {
       setStatus('success')
     } catch (err) {
       setStatus('error')
-      const msg = err?.response?.data?.message || 'Something went wrong. Please try again.'
+      // Handle validator errors array format
+      const validatorErrors = err?.response?.data?.errors
+      const msg = validatorErrors
+        ? validatorErrors[0]?.msg
+        : err?.response?.data?.message || 'Something went wrong. Please try again.'
       setErrorMsg(msg)
-
-      // ← If user already exists, offer resend option
       if (msg.toLowerCase().includes('already exists')) {
         setShowResend(true)
       }
@@ -59,7 +61,7 @@ const Register = () => {
           <div className="w-full max-w-md rounded-2xl border border-[#31b8c6]/40 bg-zinc-900/70 p-8 shadow-2xl shadow-black/50 backdrop-blur text-center">
             <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#31b8c6]/10 border border-[#31b8c6]/30">
               <svg className="w-8 h-8 fill-[#31b8c6]" viewBox="0 0 16 16">
-                <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z"/>
+                <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z" />
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-[#31b8c6] mb-2">Check your inbox!</h2>

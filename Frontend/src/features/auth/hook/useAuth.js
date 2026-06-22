@@ -6,19 +6,23 @@ export function useAuth() {
     const dispatch = useDispatch()
 
     async function handleRegister({ email, username, password }) {
-        dispatch(setLoading(true))
-        dispatch(setError(null))
-        try {
-            const data = await register({ email, username, password })
-            return data   // ← return so Register.jsx knows it succeeded
-        } catch (error) {
-            const msg = error.response?.data?.message || "Registration failed"
-            dispatch(setError(msg))
-            throw error   // ← re-throw so Register.jsx catch block fires
-        } finally {
-            dispatch(setLoading(false))
-        }
+    dispatch(setLoading(true))
+    dispatch(setError(null))
+    try {
+        const data = await register({ email, username, password })
+        return data
+    } catch (error) {
+        // Handle both validator errors array and single message errors
+        const validatorErrors = error.response?.data?.errors
+        const msg = validatorErrors
+            ? validatorErrors[0]?.msg
+            : error.response?.data?.message || "Registration failed"
+        dispatch(setError(msg))
+        throw error
+    } finally {
+        dispatch(setLoading(false))
     }
+}
 
     async function handleLogin({ email, password }) {
         dispatch(setLoading(true))
